@@ -61,6 +61,7 @@ void sendlog(unsigned short port, const char *fmt, ...)
 }
 
 #define FILE_PATH  "/mnt/sdcard/log"
+static int write_log_mode = 0; //0- printf
 
 void writelog(const char *fmt, ...)
 {
@@ -69,17 +70,21 @@ void writelog(const char *fmt, ...)
     struct timespec stTime;
     struct tm *lt;
     int offset;
-
-    static FILE *fp = NULL;            
+    static FILE *fp = NULL;
+    
     if (NULL == fp) {
-        char path[100];
-        char time[16]; 
-        struct timespec stTime;
-        clock_gettime(CLOCK_REALTIME, &stTime);
-        struct tm *lt = localtime(&stTime.tv_sec);
-        time[strftime(time, sizeof(time), "%H-%M-%S", lt)] = '\0';
-        snprintf(path, 100, "%s-%s.txt", FILE_PATH, time);
-        fp = fopen(path, "a+");
+        if (write_log_mode == 0) {
+            fp = stderr;
+        } else {
+            char path[100];
+            char time[16]; 
+            struct timespec stTime;
+            clock_gettime(CLOCK_REALTIME, &stTime);
+            struct tm *lt = localtime(&stTime.tv_sec);
+            time[strftime(time, sizeof(time), "%H-%M-%S", lt)] = '\0';
+            snprintf(path, 100, "%s-%s.txt", FILE_PATH, time);
+            fp = fopen(path, "a+");
+        }
         //printf("send thread fopen ret = %p, reason:%s\n", fp, strerror(errno));
 
         //fprintf(fp, "%s\n", "time");          
@@ -191,7 +196,7 @@ int main() {
         memset(buf, (i%10)+48, i);
         buf[i+1] = 0;
 
-        cachelog("%d--%s\n", i, buf);
+        writelog("%d--%s\n", i, buf);
         i++;
     }
 
