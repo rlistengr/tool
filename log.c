@@ -106,6 +106,7 @@ void writelog(const char *fmt, ...)
         vfprintf(fp, fmt, args);
         va_end(args);
         fprintf(fp, "\n");
+	fflush(fp);
     } 
 
     return;
