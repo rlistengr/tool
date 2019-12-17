@@ -233,8 +233,8 @@ int main() {
         memset(buf, (i%10)+48, i);
         buf[i+1] = 0;
 
-        //logBackTrace("%d--%s\n", i, buf);
-        logBackTrace();
+        sendlog(0, "%d--%s", i, buf);
+        //logBackTrace();
         i++;
     }
 
