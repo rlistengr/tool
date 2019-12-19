@@ -3,6 +3,8 @@
 #include <errno.h>
 #include <netinet/in.h>
 #include <string.h>
+#include <arpa/inet.h>
+
 
 #define SERVER_PORT 12345
 #define BUF_SIZE    2000
@@ -28,10 +30,13 @@ int main() {
 
     char buf[BUF_SIZE];
     ssize_t ret;
+    struct sockaddr_in clientAddr;
+    socklen_t clientAddrLen;
     while (1) {
-        ret = recvfrom(fd, buf, BUF_SIZE, 0, NULL, NULL);
+	clientAddrLen = sizeof(clientAddr);
+        ret = recvfrom(fd, buf, BUF_SIZE, 0, (struct sockaddr *)&clientAddr, &clientAddrLen);
         if (ret > 0) {
-            printf("%s", buf);
+            printf("[%s]%s", inet_ntoa(clientAddr.sin_addr), buf);
         }
     }
 
