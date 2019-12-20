@@ -11,11 +11,18 @@
 #include <execinfo.h>
 #include <unistd.h>
 
+#define LOG_MODE_SENDUDP    1
+#define LOG_MODE_WRITEFILE  2
+#define LOG_MODE_PRINTF     3
+#define LOG_MODE_CACHE      4
+
+static int log_mode = LOG_MODE_CACHE;
+
 #define SERVER_IP   "127.0.0.1"
 #define BUF_SIZE    2000
 #define DEFAULT_PORT    12345
 
-void sendlog(unsigned short port, const char *fmt, ...)
+void _sendlog(unsigned short port, const char *fmt, va_list args)
 {
     char buf[BUF_SIZE];
     static int fd = -1;
@@ -28,7 +35,6 @@ void sendlog(unsigned short port, const char *fmt, ...)
         port = DEFAULT_PORT;
     }
 
-    va_list args;
     char time_data[16];
     struct timespec stTime;
     struct tm *lt;
@@ -40,9 +46,7 @@ void sendlog(unsigned short port, const char *fmt, ...)
     
     offset = snprintf(buf, BUF_SIZE, "%s.%09lu:", time_data, stTime.tv_nsec);
 
-    va_start(args, fmt);
     offset += vsnprintf(buf+offset, BUF_SIZE-offset, fmt, args);
-    va_end(args);
     
     if ((offset+1) > (BUF_SIZE-1)) {
         offset = BUF_SIZE-2;
@@ -64,12 +68,20 @@ void sendlog(unsigned short port, const char *fmt, ...)
     return;
 }
 
-#define FILE_PATH  "/mnt/sdcard/log"
-static int write_log_mode = 1; //0- printf
-
-void writelog(const char *fmt, ...)
-{
+void sendlog(unsigned short port, const char *fmt, ...) {
     va_list args;
+
+    va_start(args, fmt);
+    _sendlog(port, fmt, args);
+    va_end(args);
+    
+    return;
+}
+
+#define FILE_PATH  "/mnt/sdcard/log"
+
+void _writelog(const char *fmt, va_list args)
+{
     char time_data[16];
     struct timespec stTime;
     struct tm *lt;
@@ -77,7 +89,7 @@ void writelog(const char *fmt, ...)
     static FILE *fp = NULL;
     
     if (NULL == fp) {
-        if (write_log_mode == 0) {
+        if (log_mode == LOG_MODE_PRINTF) {
             fp = stderr;
         } else {
             char path[100];
@@ -102,13 +114,21 @@ void writelog(const char *fmt, ...)
     
         fprintf(fp, "%s.%09lu:", time_data, stTime.tv_nsec);
 
-        va_start(args, fmt);
         vfprintf(fp, fmt, args);
-        va_end(args);
         fprintf(fp, "\n");
-	fflush(fp);
+        fflush(fp);
     } 
 
+    return;
+}
+
+void writelog(const char *fmt, ...) {
+    va_list args;
+
+    va_start(args, fmt);
+    _writelog(fmt, args);
+    va_end(args);
+    
     return;
 }
 
@@ -142,8 +162,7 @@ void printCacheLog(int sig) {
     return;
 }
 
-void cachelog(const char *fmt, ...) {
-    va_list args;
+void _cachelog(const char *fmt, va_list args) {
     char time_data[16];
     struct timespec stTime;
     struct tm *lt;
@@ -174,9 +193,7 @@ void cachelog(const char *fmt, ...) {
     
     offset = snprintf(node->buf, LOG_BUF_SIZE, "%s.%09lu:", time_data, stTime.tv_nsec);
 
-    va_start(args, fmt);
     offset += vsnprintf(node->buf+offset, LOG_BUF_SIZE-offset, fmt, args);
-    va_end(args);
     
     if ((offset+1) > (LOG_BUF_SIZE-1)) {
         offset = LOG_BUF_SIZE-2;
@@ -195,6 +212,53 @@ void cachelog(const char *fmt, ...) {
     node->next = NULL;
     ++log_count;
     pthread_mutex_unlock(&log_lock);
+
+    return;
+}
+
+void cachelog(const char *fmt, ...) {
+    va_list args;
+
+    va_start(args, fmt);
+    _cachelog(fmt, args);
+    va_end(args);
+    
+    return;
+}
+
+void logRecord(char *fmt, ...) {
+    va_list args;
+
+    va_start(args, fmt);
+
+    switch (log_mode) {
+        case LOG_MODE_SENDUDP:
+        {
+            _sendlog(0, fmt, args);
+            break;
+        }
+        case LOG_MODE_WRITEFILE:
+        {
+            _writelog(fmt, args);
+            break;
+        }
+        case LOG_MODE_PRINTF:
+        {
+            _writelog(fmt, args);
+            break;
+        }
+        case LOG_MODE_CACHE:
+        {
+            _cachelog(fmt, args);
+            break;
+        }
+        default:
+        {
+            break;
+        }
+    }
+
+    va_end(args);
 
     return;
 }
@@ -230,14 +294,24 @@ int main() {
     int i = 1;
     char buf[4000];
 
+    struct timespec stStart;
+    struct timespec stEnd;
+    clock_gettime(CLOCK_REALTIME, &stStart);
+
     while (i < 3000) {
         memset(buf, (i%10)+48, i);
         buf[i+1] = 0;
 
-        sendlog(0, "%d--%s", i, buf);
+        logRecord("%d--%s", i, buf);
         //logBackTrace();
+        //sendlog(0, "%d--%s", i, buf);
+        //writelog("%d--%s", i, buf);
+        //cachelog("%d--%s", i, buf);
         i++;
     }
+
+    clock_gettime(CLOCK_REALTIME, &stEnd);
+    fprintf(stderr, "use time %lu\n", (stEnd.tv_sec-stStart.tv_sec)*1000000000+(stEnd.tv_nsec-stStart.tv_nsec));
 
     while(1);
     
