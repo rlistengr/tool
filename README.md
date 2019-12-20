@@ -35,3 +35,17 @@
 
 1. 使用接口logBackTrace，不需要参数
 2. 记录的方式可以选择上诉任何一种，需要修改代码
+
+## 使用通用接口
+1. 使用函数logRecord，参数是fmt可变参数
+
+2. 通过全局变量log_mode决定使用什么方式打印，分别是上面的四种方式
+
+   \#define LOG_MODE_SENDUDP    1
+
+   \#define LOG_MODE_WRITEFILE  2
+
+   \#define LOG_MODE_PRINTF     3
+
+   \#define LOG_MODE_CACHE      4
+
