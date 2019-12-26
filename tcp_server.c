@@ -2,11 +2,11 @@
 #include <sys/socket.h>
 #include <stdio.h>
 #include <errno.h>
-#include <linux/in.h>
 #include <sys/epoll.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <netinet/in.h>
 
 typedef struct userdata {
     int fd;
@@ -90,7 +90,7 @@ int main(){
     struct sockaddr_in stAddr;
     memset(&stAddr, 0, sizeof(stAddr));
     stAddr.sin_family = AF_INET;
-    stAddr.sin_port = 9090;
+    stAddr.sin_port = htons(9090);
     if (bind(fd, (struct sockaddr *)&stAddr, sizeof(stAddr)) == -1) {
         printf("bind failed %d\n", errno);
         return -1;
